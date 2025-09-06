@@ -1,0 +1,718 @@
+{
+  "name": "part 2",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "037979e8-f79c-4792-8758-5c9099df6f7c",
+      "name": "Daily Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1616,
+        -576
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "8dcba610-8fb7-42e8-84bc-7768c4a49d36",
+      "name": "Merge All Articles",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        -1616,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "title"
+            },
+            {
+              "fieldToAggregate": "description"
+            },
+            {
+              "fieldToAggregate": "url"
+            },
+            {
+              "fieldToAggregate": "publishedAt"
+            },
+            {
+              "fieldToAggregate": "source"
+            },
+            {
+              "fieldToAggregate": "keyword"
+            },
+            {
+              "fieldToAggregate": "scrapedAt"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c8b78eb4-9748-4cf2-aece-2e35242c6f9d",
+      "name": "Aggregate Articles",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -1408,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "fc3c9452-b54b-4030-a602-b2ff206f5bf6",
+      "name": "Final JSON Format",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        -1184,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=drone&hl=en-US&gl=US&ceid=US:en",
+        "options": {}
+      },
+      "id": "24fd460a-c372-44ee-a7ff-85c6bc9112df",
+      "name": "CNN RSS Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1376,
+        -576
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "489f4965-c686-47d9-925e-82212ba2ee5a",
+      "name": "Parse RSS XML",
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [
+        -1152,
+        -576
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "rss.channel.item",
+        "options": {}
+      },
+      "id": "cc5908de-1561-4fdd-b2bc-261e9be36025",
+      "name": "Split RSS Items",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        -928,
+        -576
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "drone-filter",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "drone",
+              "operator": {
+                "type": "string",
+                "operation": "contains",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "56b8c6ad-f07b-424f-9c14-a0a753df8315",
+      "name": "Filter Drone Articles",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        -576
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "b834a139-b8fe-41ef-bcb8-749211c2ca5d",
+      "name": "Format RSS Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        -496,
+        -576
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "9600e5e7-a1c0-4412-a63a-df475c1051cf",
+      "name": "Parse Analysis",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        -176,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "38912f30-4e95-476e-a6e2-d7ce93388f01",
+      "name": "Extract ChatGPT Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        -432,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const titles = $json.title || [];\nconst descs  = $json.description || [];\nconst urls   = $json.url || [];\n\nconst articles = titles.map((t, i) => ({\n  title: t,\n  description: (descs[i] || '').replace(/\\s+/g, ' ').trim(),\n  url: urls[i] || ''\n}));\n\nconst prompt =\n`You are a concise tech news summarizer.\nSummarize the list into:\n1) One 3–5 sentence cohesive summary (no fluff).\n2) 3–5 trending keywords (comma-separated).\n3) 5–8 relevant hashtags (prefixed with #, no spaces).\nKeep neutral, fact-focused. If items repeat, deduplicate.\n\nARTICLES (JSON):\n${JSON.stringify(articles, null, 2)}`;\n\nreturn [{ json: { prompt } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -976,
+        -288
+      ],
+      "id": "54042b65-aaae-40c5-8c92-a3937b3bfcdb",
+      "name": "Prepare Article Text1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyB017U4zWPvktUHaLl2ogl81pVYpAebHbk",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents[0].parts[0].text",
+              "value": "={{\n  \"You are a concise tech news summarizer. Summarize into:\\n\" +\n  \"1) 3–5 sentence cohesive summary\\n\" +\n  \"2) 3–5 trending keywords (comma-separated)\\n\" +\n  \"3) 5–8 relevant hashtags (prefixed with #)\\n\\n\" +\n  \"Here is the input:\\n\" +\n  ($json.prompt || \"\")\n}}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -720,
+        -288
+      ],
+      "id": "52df276d-7252-4321-a882-5e9d1c7174ef",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "1cc8d894-54df-4b2e-8c35-0b5f5bab5d2d",
+      "name": "Extract Analysis Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        32,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "include": "=all",
+        "options": {}
+      },
+      "id": "b15405d0-c522-489a-ab76-7e7b4678a847",
+      "name": "Parse Social Content",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        -1184,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "d2c7274b-b657-4318-9fc6-94f12b9c10bb",
+      "name": "Format Posts",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        -960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "a69864d4-0d5f-47c1-b229-bf8fe223e818",
+      "name": "Compile Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        -528,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "a909923d-62c3-44dd-b0ee-e41822b7f0e1",
+      "name": "Final Posting Report",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        -304,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "75385835-8e5d-4967-a8b4-f5d13bce316c",
+      "name": "Convert Report to File",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "fileName": "={{ 'social-media-posting-report-' + $now.format('YYYY-MM-DD-HHmm') + '.json' }}",
+        "options": {}
+      },
+      "id": "097ff39c-03bd-4e14-93d2-586b0a8f0c69",
+      "name": "Save Posting Report",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        144,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.linkedinResult.status }}",
+                    "rightValue": "Failed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "b9d18897-4875-4aaf-9788-c18bc9fc6d20"
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "failed_posts"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "713a13af-0e0b-4f17-9f2d-ac617921d181",
+      "name": "Handle Failed Posts",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -304,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert social media copywriter.\n\nWrite a high-performing caption for the topic: “{{ $json[\"candidates\"][0][\"content\"][\"parts\"][0][\"text\"] }}\n”.\n\n\nGenerate a short, non-generic caption for each platform. Captions must follow exact max-lengths and these best practices:\n\n\n• Facebook Reels (max 2200 chars) \n\n  – First 125 chars must punch \n\n  – Use line breaks or emojis \n\n  – Include CTA within first 125 \n\n  – 2–3 relevant hashtags \n\n\n\nOutput only valid JSON. \n\n\nExample output:\n\n\n{\n\n\n  \"…\"\n\n\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -1632,
+        0
+      ],
+      "id": "36042f06-c876-4b0e-a734-cf36d12f28fe",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "vBsgxS7GyfMLOwo7",
+          "name": "OpenAi account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v23.0",
+        "node": "810069625519847",
+        "edge": "feed",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "message",
+                "value": "={{$json[\"message\"][\"content\"]}}\n"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        -752,
+        0
+      ],
+      "id": "93ed34b4-f74e-4b8e-8b07-a3de9e499d0a",
+      "name": "Facebook Graph API",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "1LR0ypJytjRHW21O",
+          "name": "Facebook Graph account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Daily Trigger": [
+      {
+        "json": {
+          "timestamp": "2025-09-05T10:03:12.439-04:00",
+          "Readable date": "September 5th 2025, 10:03:12 am",
+          "Readable time": "10:03:12 am",
+          "Day of week": "Friday",
+          "Year": "2025",
+          "Month": "September",
+          "Day of month": "05",
+          "Hour": "10",
+          "Minute": "03",
+          "Second": "12",
+          "Timezone": "Asia/Kolkata (UTC+05:30)"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Daily Trigger": {
+      "main": [
+        [
+          {
+            "node": "CNN RSS Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Articles": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Articles": {
+      "main": [
+        [
+          {
+            "node": "Final JSON Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final JSON Format": {
+      "main": [
+        [
+          {
+            "node": "Prepare Article Text1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CNN RSS Feed": {
+      "main": [
+        [
+          {
+            "node": "Parse RSS XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse RSS XML": {
+      "main": [
+        [
+          {
+            "node": "Split RSS Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split RSS Items": {
+      "main": [
+        [
+          {
+            "node": "Filter Drone Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Drone Articles": {
+      "main": [
+        [
+          {
+            "node": "Format RSS Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format RSS Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Articles",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Parse Analysis": {
+      "main": [
+        [
+          {
+            "node": "Extract Analysis Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract ChatGPT Response": {
+      "main": [
+        [
+          {
+            "node": "Parse Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Article Text1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract ChatGPT Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Analysis Data": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Social Content": {
+      "main": [
+        [
+          {
+            "node": "Format Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Posts": {
+      "main": [
+        [
+          {
+            "node": "Facebook Graph API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Results": {
+      "main": [
+        [
+          {
+            "node": "Final Posting Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Handle Failed Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Posting Report": {
+      "main": [
+        [
+          {
+            "node": "Convert Report to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Report to File": {
+      "main": [
+        [
+          {
+            "node": "Save Posting Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Parse Social Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Graph API": {
+      "main": [
+        [
+          {
+            "node": "Compile Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Failed Posts": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8f9f46bc-30a2-40fe-bfe2-9cb0fedc60e3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c21030c0927c0800a61f85d20bcc729d1ee9d7eef63f05d5c131eb9ac7cac669"
+  },
+  "id": "6LB4mSXl23qIlLO1",
+  "tags": []
+}
