@@ -10,6 +10,11 @@ This project is an n8n automation workflow that:
 4. Automatically posts the results to a **Facebook Page** via the **Facebook Graph API**.  
 5. Generates a **posting report** in JSON for audit and logging.
 
+<p align="center">
+  <img src="n8n.png" alt="Workflow" width="600">
+</p>
+
+
 ---
 
 ## 🚀 Features
