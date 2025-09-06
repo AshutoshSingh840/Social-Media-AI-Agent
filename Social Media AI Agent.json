@@ -213,7 +213,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyB017U4zWPvktUHaLl2ogl81pVYpAebHbk",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=[Insert_Your_Key]",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
