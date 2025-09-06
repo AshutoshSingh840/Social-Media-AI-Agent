@@ -81,7 +81,7 @@ This project is an n8n automation workflow that:
 - Facebook posts appear on your Page with AI-generated summaries & hashtags.  
 - JSON report saved (includes timestamps, success/failure, post IDs).  
 <p align="center">
-  <img src="output.png" alt="Workflow" width="600">
+  <img src="Output.png" alt="Workflow" width="600">
 </p>
 ---
 
